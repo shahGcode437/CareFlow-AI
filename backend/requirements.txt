@@ -1,0 +1,13 @@
+# CareFlow AI backend dependencies.
+# Excel/pandas/openpyxl and any agent/LLM SDK are added in later phases
+# per the Claude Implementation Master Guide's phase plan.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+
+# Added in Phase 2 — required to verify the Pydantic schema layer
+# (Implementation Guide Phase 2 gate: "Schema validation tests pass").
+pytest==8.3.4
