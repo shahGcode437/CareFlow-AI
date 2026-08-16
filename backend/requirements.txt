@@ -11,3 +11,10 @@ python-dotenv==1.0.1
 # Added in Phase 2 — required to verify the Pydantic schema layer
 # (Implementation Guide Phase 2 gate: "Schema validation tests pass").
 pytest==8.3.4
+
+# Added in Phase 3 — Excel repository layer. pandas was pre-approved but
+# is not imported anywhere in this phase's implementation (openpyxl's
+# row/cell-level API was a better fit for the write-lock + update-by-key
+# pattern), so it is intentionally not added yet to avoid an unused
+# dependency.
+openpyxl==3.1.5

@@ -1,19 +1,35 @@
 """Application-level configuration.
 
-Scope note (Phase 1 only): this module holds *application* settings only
-(app metadata, host/port, log level, CORS). It intentionally does NOT hold
-appointment/business configuration such as default slot duration or the
-staff-approval policy — those values live in the Excel `Config` sheet and
-will be read through a repository in a later phase, per the approved
-Service Design Specification. Do not add business rules here.
+Scope note: this module holds *application* settings (app metadata,
+host/port, log level, CORS, and — as of Phase 3 — the Excel workbook
+path). It intentionally does NOT hold appointment/business configuration
+such as default slot duration or the staff-approval policy — those
+values live in the Excel `Config` sheet and are a Phase 4 (Service)
+concern; no ConfigRepository is implemented in Phase 3 since it is not
+among the documented repository interfaces. Do not add business rules
+here.
 
 Values are loaded from environment variables (optionally via a local .env
 file during development). See .env.example for the supported variables.
+
+Phase 3 addition — flagged assumption:
+No specification document names an environment variable or config key
+for the Excel workbook path. Per the Phase 3 instructions, this is
+flagged rather than silently invented: the setting is named
+`excel_file_path` (env var `EXCEL_FILE_PATH`) below. Please confirm or
+rename it. The default value points at data/clinic_appointments_MVP_template.xlsx,
+resolved relative to the backend project root (never an absolute,
+machine-specific path), matching the `data/` folder location shown in
+the Master Specification §19 recommended project structure.
 """
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# backend/app/core/config.py -> parents[2] == backend/
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -46,6 +62,22 @@ class Settings(BaseSettings):
     # --- CORS (permissive defaults for local dev only) ---
     cors_allow_origins: list[str] = ["*"]
 
+    # --- Excel workbook path (Phase 3) ---
+    # Flagged assumption — see module docstring. Relative paths are
+    # resolved against the backend project root, never the process's
+    # current working directory, so behavior is the same regardless of
+    # where `uvicorn` is launched from.
+    excel_file_path: str = "data/clinic_appointments_MVP_template.xlsx"
+
+    @property
+    def resolved_excel_file_path(self) -> Path:
+        """Absolute path to the Excel workbook, without hardcoding any
+        machine-specific location."""
+        path = Path(self.excel_file_path)
+        if path.is_absolute():
+            return path
+        return (_BACKEND_ROOT / path).resolve()
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -55,3 +87,4 @@ def get_settings() -> Settings:
     every request/import.
     """
     return Settings()
+
