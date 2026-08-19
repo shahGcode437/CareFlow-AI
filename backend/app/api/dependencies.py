@@ -17,7 +17,7 @@ not affect testability.
 from functools import lru_cache
 
 from app.agents.appointment_agent import AppointmentAgent
-from app.agents.llm_provider import RuleBasedIntentProvider
+from app.agents.llm_provider import GroqLLMProvider, LLMProvider, RuleBasedIntentProvider
 from app.agents.supervisor import Supervisor
 from app.core.config import get_settings
 from app.repositories.appointment_repository import ExcelAppointmentRepository
@@ -45,13 +45,24 @@ def get_appointment_tools() -> AppointmentTools:
 
 @lru_cache
 def get_appointment_agent() -> AppointmentAgent:
-    """No specification names an LLM provider (Master Spec §25, open
-    decision), so RuleBasedIntentProvider — the deterministic,
-    no-external-call placeholder documented in app.agents.llm_provider —
-    is wired in here. Swapping in a real provider later only requires
-    changing this one line.
+    """Phase 7.1: selects a real LLM-backed provider only when
+    LLM_PROVIDER=groq AND LLM_API_KEY is actually set. Otherwise falls
+    back to RuleBasedIntentProvider — the deterministic, no-external-call
+    placeholder — so the app remains importable and testable with zero
+    LLM configuration. Swapping providers is entirely config-driven; no
+    change to AppointmentAgent/Supervisor is ever required.
     """
-    return AppointmentAgent(RuleBasedIntentProvider(), get_appointment_tools())
+    settings = get_settings()
+    provider: LLMProvider
+    if settings.llm_provider == "groq" and settings.llm_api_key:
+        provider = GroqLLMProvider(
+            api_key=settings.llm_api_key,
+            model=settings.llm_model,
+            base_url=settings.llm_base_url,
+        )
+    else:
+        provider = RuleBasedIntentProvider()
+    return AppointmentAgent(provider, get_appointment_tools())
 
 
 @lru_cache

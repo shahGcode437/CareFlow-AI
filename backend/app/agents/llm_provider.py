@@ -31,10 +31,13 @@ anywhere today, since it makes no LLM calls, but a concrete provider
 class built later would use it as-is.
 """
 
+import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Union
+from typing import Any, Callable, Literal, Union
+
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 SYSTEM_PROMPT = """You are CareFlow-AI's appointment assistant.
 
@@ -213,3 +216,189 @@ class RuleBasedIntentProvider(LLMProvider):
                 arguments[optional_field] = known[optional_field]
 
         return ToolCallDecision(tool_name=matched_tool, arguments=arguments)
+
+
+# =====================================================================
+# Phase 7.1 — real LLM-backed provider
+#
+# Everything below is ADDITIVE: the LLMProvider interface and
+# RuleBasedIntentProvider above are unchanged. AppointmentAgent and
+# Supervisor require no changes at all — they already depend only on
+# the LLMProvider abstraction.
+# =====================================================================
+
+# The exact set of tools AppointmentTools actually exposes (Phase 5).
+# A real model's output is validated against this allowlist below
+# BEFORE anything downstream ever does getattr(tools, tool_name) — the
+# model can never select or execute anything outside this set.
+_APPROVED_TOOL_NAMES = {
+    "check_availability",
+    "find_alternative_slots",
+    "create_appointment",
+    "get_appointment",
+    "update_appointment",
+    "cancel_appointment",
+    "approve_appointment",
+    "reject_appointment",
+}
+
+# Describes the required envelope shape and each tool's argument names
+# to the model. This is INPUT-SHAPE guidance only (mirrors the already-
+# documented Tool Contract §5-12 input schemas) — no business rule,
+# availability logic, or state-transition rule is described here.
+_RESPONSE_FORMAT_INSTRUCTIONS = """
+You must respond with a single JSON object and nothing else, matching
+exactly one of these three shapes:
+
+1) A tool call, when you have every required argument:
+   {"status": "tool_call", "tool_name": "<one of the tool names below>",
+    "arguments": {"<field>": "<value>", ...}}
+
+2) Missing required information:
+   {"status": "needs_information", "missing_fields": ["<field>", ...],
+    "message": "<a short question asking for exactly those fields>"}
+
+3) The request is not a supported appointment operation:
+   {"status": "unsupported", "message": "<a short, honest explanation>"}
+
+Approved tool names and their required arguments:
+- check_availability: doctor_id, appointment_date (YYYY-MM-DD), appointment_time (HH:MM)
+- find_alternative_slots: doctor_id, appointment_date (YYYY-MM-DD), appointment_time (HH:MM)
+- create_appointment: patient_name, patient_phone, doctor_id, doctor_name, service, appointment_date (YYYY-MM-DD), appointment_time (HH:MM)
+- get_appointment: appointment_id
+- update_appointment: appointment_id
+- cancel_appointment: appointment_id
+- approve_appointment: appointment_id
+- reject_appointment: appointment_id, reason
+
+Never invent a doctor_id, appointment_id, date, or time that was not
+given to you. If a value wasn't stated, that field is missing — use
+status "needs_information" instead of guessing.
+"""
+
+
+class LLMDecisionEnvelope(BaseModel):
+    """Validates the raw JSON a real LLM returns before it is ever
+    trusted enough to select a tool. This is the ONLY place raw model
+    output is parsed — AppointmentAgent never sees anything but the
+    existing ToolCallDecision/NeedsInfoDecision/NotApplicableDecision
+    dataclasses, unchanged from before Phase 7.1.
+    """
+
+    status: Literal["tool_call", "needs_information", "unsupported"]
+    tool_name: str | None = None
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    missing_fields: list[str] = Field(default_factory=list)
+    message: str | None = None
+
+    @field_validator("tool_name")
+    @classmethod
+    def _tool_name_must_be_approved(cls, value: str | None) -> str | None:
+        if value is not None and value not in _APPROVED_TOOL_NAMES:
+            raise ValueError(
+                f"'{value}' is not an approved AppointmentTools method; "
+                f"approved names are {sorted(_APPROVED_TOOL_NAMES)}"
+            )
+        return value
+
+    @model_validator(mode="after")
+    def _tool_call_requires_tool_name(self) -> "LLMDecisionEnvelope":
+        if self.status == "tool_call" and not self.tool_name:
+            raise ValueError("status='tool_call' requires a tool_name.")
+        return self
+
+    def to_agent_decision(self) -> AgentDecision:
+        if self.status == "tool_call":
+            return ToolCallDecision(tool_name=self.tool_name, arguments=self.arguments)
+        if self.status == "needs_information":
+            return NeedsInfoDecision(
+                missing_fields=self.missing_fields or ["required information"],
+                message=self.message or "Could you provide a few more details?",
+            )
+        return NotApplicableDecision(
+            self.message
+            or "I can help with checking availability, booking, viewing, "
+            "rescheduling, or cancelling appointments, or with staff "
+            "approval/rejection of pending requests."
+        )
+
+
+class GroqLLMProvider(LLMProvider):
+    """Real LLM-backed provider using Groq's OpenAI-compatible chat
+    completions REST API. See Phase 7.1 report for the provider
+    comparison and why Groq was selected.
+
+    Uses `httpx` directly (already a project dependency since Phase 6 —
+    no new dependency was added for this). The HTTP call itself is
+    injectable via `http_post`, defaulting to a real network call, so
+    tests never need real credentials or network access.
+
+    Malformed/unexpected model output is NEVER trusted enough to select
+    or execute a tool: any parsing/validation failure falls back to a
+    safe NotApplicableDecision instead of crashing or hallucinating a
+    tool call.
+    """
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "llama-3.1-8b-instant",
+        base_url: str = "https://api.groq.com/openai/v1/chat/completions",
+        http_post: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+        timeout: float = 15.0,
+    ):
+        if not api_key:
+            raise ValueError("GroqLLMProvider requires a non-empty api_key.")
+        self._api_key = api_key
+        self._model = model
+        self._base_url = base_url
+        self._timeout = timeout
+        # Injectable for testing; defaults to a real network call. This
+        # is the ONLY place a network request is made anywhere in the
+        # agents package.
+        self._http_post = http_post or self._default_http_post
+
+    def _default_http_post(self, payload: dict[str, Any]) -> dict[str, Any]:
+        import httpx
+
+        response = httpx.post(
+            self._base_url,
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=self._timeout,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def _build_user_content(self, message: str, context: dict[str, Any] | None) -> str:
+        if not context:
+            return message
+        return f"{message}\n\nAlready-known information: {json.dumps(context)}"
+
+    def decide(self, message: str, context: dict[str, Any] | None = None) -> AgentDecision:
+        payload = {
+            "model": self._model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT + "\n" + _RESPONSE_FORMAT_INSTRUCTIONS},
+                {"role": "user", "content": self._build_user_content(message, context)},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0,
+        }
+
+        try:
+            raw = self._http_post(payload)
+            content = raw["choices"][0]["message"]["content"]
+            parsed = json.loads(content)
+            envelope = LLMDecisionEnvelope.model_validate(parsed)
+        except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError, ValidationError):
+            # Covers: malformed JSON, unexpected response shape, an
+            # unapproved tool_name, or any other validation failure.
+            return NotApplicableDecision(
+                "I had trouble understanding that request. Could you rephrase it?"
+            )
+
+        return envelope.to_agent_decision()

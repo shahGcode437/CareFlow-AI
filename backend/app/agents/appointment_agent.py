@@ -75,7 +75,22 @@ class AppointmentAgent:
                 requires_staff_review=False,
             )
 
-        result: ToolResult = tool_method(**decision.arguments)
+        try:
+            result: ToolResult = tool_method(**decision.arguments)
+        except TypeError:
+            # Phase 7.1 discovery: decision.arguments comes from an
+            # untrusted provider (a real LLM's structured output) and
+            # AppointmentTools method parameters have no Python-level
+            # defaults, so an incomplete arguments dict raises a raw
+            # TypeError before the tool's own Pydantic validation ever
+            # runs. Treated the same as any other invalid tool input —
+            # never allowed to crash the request.
+            return AgentResponse(
+                message="That request wasn't valid — please check the details and try again.",
+                intent=decision.tool_name,
+                data=None,
+                requires_staff_review=False,
+            )
 
         if not result.success:
             message = _ERROR_MESSAGES.get(result.error.code, result.error.message)

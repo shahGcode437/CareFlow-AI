@@ -81,6 +81,17 @@ class Settings(BaseSettings):
     # sheet — but this is NOT read from the Config sheet automatically.
     require_staff_approval: bool = True
 
+    # --- LLM provider (Phase 7.1) ---
+    # Defaults to "rule_based" (RuleBasedIntentProvider, no external
+    # calls) so the app is importable/testable with zero configuration.
+    # Set LLM_PROVIDER=groq + LLM_API_KEY to enable the real provider —
+    # see app/agents/llm_provider.py (GroqLLMProvider) and the Phase 7.1
+    # report for why Groq was selected. Never hardcode a real key here.
+    llm_provider: str = "rule_based"  # "rule_based" | "groq"
+    llm_model: str = "llama-3.1-8b-instant"
+    llm_api_key: str | None = None
+    llm_base_url: str = "https://api.groq.com/openai/v1/chat/completions"
+
     @property
     def resolved_excel_file_path(self) -> Path:
         """Absolute path to the Excel workbook, without hardcoding any
