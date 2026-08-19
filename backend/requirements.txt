@@ -18,3 +18,7 @@ pytest==8.3.4
 # pattern), so it is intentionally not added yet to avoid an unused
 # dependency.
 openpyxl==3.1.5
+
+# Added in Phase 6 — required by FastAPI's TestClient (fastapi.testclient)
+# used in tests/test_routes.py. Test-only; not used at application runtime.
+httpx==0.28.1

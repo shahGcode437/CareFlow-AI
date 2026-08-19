@@ -69,6 +69,18 @@ class Settings(BaseSettings):
     # where `uvicorn` is launched from.
     excel_file_path: str = "data/clinic_appointments_MVP_template.xlsx"
 
+    # --- Staff-approval policy (Phase 6 wiring of a Phase 4 flagged gap) ---
+    # AppointmentService (Phase 4) takes `require_staff_approval` as an
+    # explicit constructor dependency because no ConfigRepository exists
+    # to read the workbook's own Config sheet (`require_staff_approval`
+    # value) — that gap was flagged, not resolved, in the Phase 4 report.
+    # This setting is the smallest way to make that value configurable
+    # for the running application without inventing a ConfigRepository or
+    # having the Service touch Excel directly. Defaults to True, matching
+    # the Service's own default and the value currently in the Config
+    # sheet — but this is NOT read from the Config sheet automatically.
+    require_staff_approval: bool = True
+
     @property
     def resolved_excel_file_path(self) -> Path:
         """Absolute path to the Excel workbook, without hardcoding any
