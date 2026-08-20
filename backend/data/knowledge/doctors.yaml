@@ -1,0 +1,349 @@
+# =============================================================================
+# CareFlow AI — Clinic Doctor Knowledge Base (Phase 8.8.2)
+# =============================================================================
+#
+# This file is a KNOWLEDGE SOURCE for the Knowledge/RAG Agent
+# (Master Spec SYS-02 / UC-02 / FR-003). It is NOT the appointment
+# database.
+#
+# ── Authoritative sources ───────────────────────────────────────────────────
+#
+# For actual APPOINTMENT AVAILABILITY, doctor activation, and booking
+# eligibility, the Appointment Service reads
+# `backend/data/clinic_appointments_MVP_template.xlsx`
+# (Doctors, Availability, and Appointments sheets). That workbook —
+# not this YAML — is the source of truth for whether a doctor can
+# actually be booked and when.
+#
+# The `available_days_summary` field below is INFORMATIONAL PROSE for
+# the Knowledge Agent's spoken answers. The Knowledge Agent MUST NOT
+# be used to answer "is this slot free right now" questions —
+# availability is the Appointment Agent's job.
+#
+# ── Consistency ─────────────────────────────────────────────────────────────
+#
+# DOC-001 and DOC-002 are the two doctors that exist in the workbook
+# today. Their id, name, specialty, and available-day/time summary
+# below MUST stay consistent with the workbook so the two sides of
+# the system tell the same story about the same doctor.
+#
+# All other doctors (DOC-003 through DOC-012) are DEMO-ONLY profiles
+# — they are NOT present in the workbook and therefore CANNOT be
+# booked through the appointment system today (a booking attempt
+# will honestly fail with DOCTOR_NOT_FOUND). Every DEMO entry is
+# marked with `demo_only: true`.
+#
+# ── Format ─────────────────────────────────────────────────────────────────
+#
+# One document per doctor. Every entry MUST contain every listed
+# field so the chunker can render uniform text. Fees are in PKR
+# (Pakistani rupees) and are demonstrative.
+# =============================================================================
+
+doctors:
+
+  # ─── EXCEL-BACKED · bookable today ────────────────────────────────────────
+
+  - doctor_id: DOC-001
+    name: Dr. Ahmed
+    specialization: General Medicine
+    qualifications:
+      - MBBS
+      - FCPS Internal Medicine
+    experience_years: 18
+    services:
+      - General Consultation
+      - Follow-up Visit
+      - Chronic Disease Management (Diabetes, Hypertension)
+    consultation_fee_pkr: 2500
+    available_days_summary: "Sunday 4:00 PM – 8:00 PM (30-minute slots)"
+    clinic_room: "Room 101, Ground Floor"
+    languages:
+      - Urdu
+      - English
+      - Punjabi
+    demo_only: false
+    bio: >
+      Dr. Ahmed is a general physician with roughly eighteen years of
+      experience in adult primary care. His practice focuses on routine
+      consultations, follow-up visits, and long-term management of
+      common chronic conditions such as diabetes and hypertension.
+      Patients describe his consultation style as thorough and calm.
+
+  - doctor_id: DOC-002
+    name: Dr. Sara
+    specialization: Dermatology
+    qualifications:
+      - MBBS
+      - Diploma in Dermatology
+    experience_years: 10
+    services:
+      - Dermatology Consultation
+      - Skin Assessment
+    consultation_fee_pkr: 3000
+    available_days_summary: "Sunday 5:00 PM – 8:00 PM (30-minute slots)"
+    clinic_room: "Room 202, First Floor"
+    languages:
+      - Urdu
+      - English
+    demo_only: false
+    bio: >
+      Dr. Sara is a dermatologist with about ten years of clinical
+      experience. She handles general dermatology consultations and
+      full skin assessments. She is known for taking time to explain
+      skincare routines and treatment options in plain language.
+
+  # ─── DEMO-ONLY profiles · NOT currently bookable ──────────────────────────
+  #
+  # Present in the Knowledge Base so patients can ask about the
+  # clinic's specialties, doctor profiles, and services, but any
+  # booking attempt will return DOCTOR_NOT_FOUND from the Appointment
+  # Service until the workbook is updated.
+
+  - doctor_id: DOC-003
+    name: Dr. Bilal Iqbal
+    specialization: Pediatrics
+    qualifications:
+      - MBBS
+      - FCPS Paediatrics
+    experience_years: 12
+    services:
+      - Well-Child Visit
+      - Childhood Vaccination Consultation
+      - Paediatric Fever Consultation
+    consultation_fee_pkr: 2800
+    available_days_summary: "Monday & Wednesday, 10:00 AM – 1:00 PM"
+    clinic_room: "Room 103, Ground Floor"
+    languages:
+      - Urdu
+      - English
+    demo_only: true
+    bio: >
+      Dr. Bilal Iqbal is a paediatrician who sees infants, children
+      and adolescents. His practice covers routine well-child visits,
+      vaccination guidance, and common childhood illnesses. Note that
+      this profile is part of the demo knowledge base and is not yet
+      bookable through the appointment system.
+
+  - doctor_id: DOC-004
+    name: Dr. Nadia Malik
+    specialization: Cardiology
+    qualifications:
+      - MBBS
+      - FCPS Cardiology
+      - Fellowship in Interventional Cardiology
+    experience_years: 15
+    services:
+      - Cardiology Consultation
+      - Hypertension Review
+      - Basic ECG Review
+    consultation_fee_pkr: 4500
+    available_days_summary: "Tuesday & Thursday, 4:00 PM – 7:00 PM"
+    clinic_room: "Room 305, Second Floor"
+    languages:
+      - Urdu
+      - English
+    demo_only: true
+    bio: >
+      Dr. Nadia Malik is a cardiologist with fifteen years of
+      experience. She focuses on outpatient cardiology consultations,
+      long-term hypertension management, and review of basic ECGs
+      referred by primary care physicians. Demo profile; not yet
+      bookable.
+
+  - doctor_id: DOC-005
+    name: Dr. Ayesha Rehman
+    specialization: Gynaecology & Obstetrics
+    qualifications:
+      - MBBS
+      - FCPS Gynaecology & Obstetrics
+    experience_years: 14
+    services:
+      - Gynaecology Consultation
+      - Antenatal Visit
+      - Family Planning Counselling
+    consultation_fee_pkr: 3500
+    available_days_summary: "Monday, Wednesday & Friday, 11:00 AM – 2:00 PM"
+    clinic_room: "Room 210, First Floor"
+    languages:
+      - Urdu
+      - English
+    demo_only: true
+    bio: >
+      Dr. Ayesha Rehman is a consultant gynaecologist and obstetrician
+      with fourteen years of experience. Her practice covers routine
+      gynaecology consultations, antenatal follow-up visits, and
+      family planning counselling. Demo profile; not yet bookable.
+
+  - doctor_id: DOC-006
+    name: Dr. Kashif Zafar
+    specialization: ENT
+    qualifications:
+      - MBBS
+      - FCPS ENT
+    experience_years: 11
+    services:
+      - ENT Consultation
+      - Ear Examination
+      - Sinus & Allergy Consultation
+    consultation_fee_pkr: 3000
+    available_days_summary: "Tuesday & Saturday, 5:00 PM – 8:00 PM"
+    clinic_room: "Room 208, First Floor"
+    languages:
+      - Urdu
+      - English
+      - Pashto
+    demo_only: true
+    bio: >
+      Dr. Kashif Zafar is an ear, nose and throat specialist with
+      eleven years of practice. He handles routine ENT consultations
+      including ear examinations, throat complaints, and seasonal
+      sinus and allergy concerns. Demo profile; not yet bookable.
+
+  - doctor_id: DOC-007
+    name: Dr. Faisal Butt
+    specialization: Orthopaedics
+    qualifications:
+      - MBBS
+      - FCPS Orthopaedic Surgery
+    experience_years: 16
+    services:
+      - Orthopaedic Consultation
+      - Joint Pain Assessment
+      - Post-Fracture Follow-up
+    consultation_fee_pkr: 3500
+    available_days_summary: "Monday & Thursday, 3:00 PM – 6:00 PM"
+    clinic_room: "Room 306, Second Floor"
+    languages:
+      - Urdu
+      - English
+      - Punjabi
+    demo_only: true
+    bio: >
+      Dr. Faisal Butt is an orthopaedic surgeon with sixteen years of
+      clinical experience. His outpatient practice covers joint pain
+      assessment, sports injuries, and follow-up after fractures.
+      Demo profile; not yet bookable.
+
+  - doctor_id: DOC-008
+    name: Dr. Zainab Qureshi
+    specialization: Psychiatry
+    qualifications:
+      - MBBS
+      - FCPS Psychiatry
+    experience_years: 9
+    services:
+      - Psychiatry Consultation
+      - Anxiety & Mood Assessment
+      - Medication Review
+    consultation_fee_pkr: 3500
+    available_days_summary: "Tuesday & Friday, 2:00 PM – 5:00 PM"
+    clinic_room: "Room 215, First Floor"
+    languages:
+      - Urdu
+      - English
+    demo_only: true
+    bio: >
+      Dr. Zainab Qureshi is a consultant psychiatrist with nine years
+      of experience. Her outpatient practice covers general psychiatry
+      consultations, anxiety and mood assessments, and medication
+      review for patients already established on treatment. Demo
+      profile; not yet bookable.
+
+  - doctor_id: DOC-009
+    name: Dr. Hassan Ali
+    specialization: Dentistry
+    qualifications:
+      - BDS
+      - MSc Restorative Dentistry
+    experience_years: 8
+    services:
+      - Dental Check-up
+      - Scaling & Polishing
+      - Restorative Consultation
+    consultation_fee_pkr: 2000
+    available_days_summary: "Monday to Saturday, 12:00 PM – 4:00 PM"
+    clinic_room: "Room 108, Ground Floor"
+    languages:
+      - Urdu
+      - English
+    demo_only: true
+    bio: >
+      Dr. Hassan Ali is a general dentist with eight years of
+      experience. He provides routine dental check-ups, scaling and
+      polishing, and consultations for restorative dental work. Demo
+      profile; not yet bookable.
+
+  - doctor_id: DOC-010
+    name: Dr. Mariam Siddiqui
+    specialization: Ophthalmology
+    qualifications:
+      - MBBS
+      - FCPS Ophthalmology
+    experience_years: 13
+    services:
+      - Eye Examination
+      - Refraction & Glasses Consultation
+      - Cataract Screening
+    consultation_fee_pkr: 3000
+    available_days_summary: "Wednesday & Saturday, 4:00 PM – 7:00 PM"
+    clinic_room: "Room 220, First Floor"
+    languages:
+      - Urdu
+      - English
+    demo_only: true
+    bio: >
+      Dr. Mariam Siddiqui is an ophthalmologist with thirteen years of
+      practice. Her outpatient services include routine eye
+      examinations, refraction and glasses consultations, and cataract
+      screening for older adults. Demo profile; not yet bookable.
+
+  - doctor_id: DOC-011
+    name: Dr. Usman Tariq
+    specialization: Family Medicine
+    qualifications:
+      - MBBS
+      - MRCGP (International)
+    experience_years: 10
+    services:
+      - Family Medicine Consultation
+      - Preventive Health Check
+      - Minor Illness Consultation
+    consultation_fee_pkr: 2500
+    available_days_summary: "Sunday & Wednesday, 10:00 AM – 1:00 PM"
+    clinic_room: "Room 105, Ground Floor"
+    languages:
+      - Urdu
+      - English
+      - Punjabi
+    demo_only: true
+    bio: >
+      Dr. Usman Tariq is a family medicine physician with ten years of
+      practice. He offers general family-practice consultations,
+      preventive health checks, and management of common minor
+      illnesses for adults and older children. Demo profile; not yet
+      bookable.
+
+  - doctor_id: DOC-012
+    name: Dr. Rabia Farooq
+    specialization: Internal Medicine
+    qualifications:
+      - MBBS
+      - FCPS Internal Medicine
+    experience_years: 12
+    services:
+      - Internal Medicine Consultation
+      - Diabetes Review
+      - Thyroid Review
+    consultation_fee_pkr: 3000
+    available_days_summary: "Monday & Thursday, 5:00 PM – 8:00 PM"
+    clinic_room: "Room 309, Second Floor"
+    languages:
+      - Urdu
+      - English
+    demo_only: true
+    bio: >
+      Dr. Rabia Farooq is a consultant in internal medicine with
+      twelve years of experience. She sees adult patients for general
+      internal medicine consultations, ongoing diabetes review, and
+      thyroid follow-up. Demo profile; not yet bookable.

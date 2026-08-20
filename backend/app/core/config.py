@@ -92,11 +92,51 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_base_url: str = "https://api.groq.com/openai/v1/chat/completions"
 
+    # --- Knowledge / RAG (Phase 8.8.12) ---
+    # Directory containing doctors.yaml + clinic_policies.md + faq.md.
+    # Relative paths are resolved against the backend project root,
+    # matching the same convention as `excel_file_path` above.
+    knowledge_data_dir: str = "data/knowledge"
+
+    # How many chunks the KnowledgeRetriever surfaces per query. The
+    # KnowledgeAgent forwards this to the retriever; the retriever
+    # forwards it to the vector store, which clamps to corpus size.
+    rag_top_k: int = 4
+
+    # FastEmbed model identifier. Defaults to the ONNX MiniLM the
+    # Phase 8.8.5 embedder already knows about (384-dim). Override if
+    # swapping to another FastEmbed-supported model — the app will
+    # still boot; unknown-model dimensions are discovered lazily.
+    rag_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+
+    # Minimum cosine similarity a retrieved chunk must reach to be
+    # surfaced by the KnowledgeAgent (Phase 8.8.14). Chunks below the
+    # threshold are dropped; if nothing passes, the KnowledgeAgent
+    # returns the honest "not in the clinic knowledge base" fallback
+    # instead of a low-confidence irrelevant answer.
+    #
+    # Default (0.45) chosen from measured corpus scores: relevant
+    # queries top out at 0.484-0.809, irrelevant queries top out at
+    # 0.052-0.439 — see the Phase 8.8.14 report for the full data.
+    # 0.45 sits in the middle of the ~0.045 gap between the two
+    # populations, so it rejects the irrelevant class cleanly while
+    # accepting every tested legitimate query. Set to 0.0 to disable.
+    rag_min_similarity: float = 0.45
+
     @property
     def resolved_excel_file_path(self) -> Path:
         """Absolute path to the Excel workbook, without hardcoding any
         machine-specific location."""
         path = Path(self.excel_file_path)
+        if path.is_absolute():
+            return path
+        return (_BACKEND_ROOT / path).resolve()
+
+    @property
+    def resolved_knowledge_data_dir(self) -> Path:
+        """Absolute path to the knowledge directory, matching the
+        `excel_file_path` resolution pattern."""
+        path = Path(self.knowledge_data_dir)
         if path.is_absolute():
             return path
         return (_BACKEND_ROOT / path).resolve()
