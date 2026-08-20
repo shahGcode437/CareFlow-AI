@@ -68,3 +68,17 @@ Thumbs.db
 frontend/node_modules/
 frontend/dist/
 frontend/.env
+# ==============================
+# Node / Frontend (Phase 8)
+# ==============================
+
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# frontend env
+frontend/.env
+frontend/.env.*
+!frontend/.env.example

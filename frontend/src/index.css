@@ -1,0 +1,406 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ------------------------------------------------------------------ */
+/* CareFlow AI  design tokens (Phase 8.4 palette refresh)             */
+/*                                                                     */
+/* Tailwind v4 CSS-first configuration. Every color is an OKLCH token */
+/* on :root (light) and re-defined under .dark (dark).                */
+/*                                                                     */
+/* Palette direction (Phase 8.4 clinical brief):                       */
+/*   - Primary: deep clinical teal                                    */
+/*   - Secondary accent: restrained clinical blue (`info` token)      */
+/*   - Surfaces: warm off-white with a subtle stratified `surface`   */
+/*   - Dark mode: deep navy/slate                                     */
+/*   - Status: pending amber, confirmed medical green, rejected rose  */
+/* ------------------------------------------------------------------ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+
+  /* --- Surfaces ------------------------------------------------- */
+  --background: oklch(0.985 0.005 85);           /* warm off-white base */
+  --surface: oklch(0.965 0.006 85);              /* one-step-back surface */
+  --foreground: oklch(0.2 0.02 240);             /* deep slate ink */
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.02 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.02 240);
+
+  /* --- Primary: deeper clinical teal --------------------------- */
+  --primary: oklch(0.48 0.11 195);
+  --primary-foreground: oklch(0.985 0.005 85);
+  --primary-soft: oklch(0.94 0.04 195);           /* subtle teal wash */
+  --primary-soft-foreground: oklch(0.3 0.09 195);
+
+  /* --- Secondary (neutral) ------------------------------------- */
+  --secondary: oklch(0.955 0.006 240);
+  --secondary-foreground: oklch(0.28 0.03 240);
+
+  --muted: oklch(0.955 0.006 240);
+  --muted-foreground: oklch(0.5 0.02 240);
+
+  --accent: oklch(0.94 0.03 195);
+  --accent-foreground: oklch(0.28 0.06 210);
+
+  /* --- Info: restrained clinical blue -------------------------- */
+  --info: oklch(0.55 0.11 235);
+  --info-foreground: oklch(0.985 0.005 85);
+  --info-soft: oklch(0.94 0.04 235);
+  --info-soft-foreground: oklch(0.32 0.09 235);
+
+  /* --- Destructive: soft rose/red ------------------------------ */
+  --destructive: oklch(0.58 0.18 22);
+  --destructive-foreground: oklch(0.985 0.005 85);
+
+  --border: oklch(0.9 0.008 240);
+  --input: oklch(0.9 0.008 240);
+  --ring: oklch(0.48 0.11 195);
+
+  /* --- Status ---------------------------------------------------- */
+  --status-pending: oklch(0.78 0.14 78);          /* amber */
+  --status-pending-foreground: oklch(0.28 0.05 78);
+  --status-confirmed: oklch(0.62 0.14 155);       /* medical green */
+  --status-confirmed-foreground: oklch(0.98 0.02 155);
+  --status-cancelled: oklch(0.58 0.02 240);       /* slate */
+  --status-cancelled-foreground: oklch(0.98 0.005 85);
+  --status-rejected: oklch(0.62 0.18 20);         /* soft rose */
+  --status-rejected-foreground: oklch(0.98 0.02 20);
+  --status-completed: oklch(0.5 0.09 195);        /* teal echo */
+  --status-completed-foreground: oklch(0.98 0.005 85);
+  --status-noshow: oklch(0.55 0.02 240);
+  --status-noshow-foreground: oklch(0.98 0.005 85);
+
+  /* Chart palette placeholder */
+  --chart-1: oklch(0.48 0.11 195);
+  --chart-2: oklch(0.62 0.14 155);
+  --chart-3: oklch(0.78 0.14 78);
+  --chart-4: oklch(0.62 0.18 20);
+  --chart-5: oklch(0.55 0.11 235);
+
+  --sidebar: oklch(0.98 0.005 85);
+  --sidebar-foreground: oklch(0.2 0.02 240);
+  --sidebar-primary: oklch(0.48 0.11 195);
+  --sidebar-primary-foreground: oklch(0.985 0.005 85);
+  --sidebar-accent: oklch(0.955 0.006 240);
+  --sidebar-accent-foreground: oklch(0.28 0.03 240);
+  --sidebar-border: oklch(0.9 0.008 240);
+  --sidebar-ring: oklch(0.48 0.11 195);
+}
+
+.dark {
+  --background: oklch(0.17 0.015 240);            /* deep navy-slate */
+  --surface: oklch(0.2 0.018 240);
+  --foreground: oklch(0.96 0.005 85);
+
+  --card: oklch(0.22 0.02 240);
+  --card-foreground: oklch(0.96 0.005 85);
+  --popover: oklch(0.22 0.02 240);
+  --popover-foreground: oklch(0.96 0.005 85);
+
+  /* Brighter teal for dark; higher chroma reads clinical on navy */
+  --primary: oklch(0.72 0.12 195);
+  --primary-foreground: oklch(0.17 0.02 240);
+  --primary-soft: oklch(0.28 0.06 200);
+  --primary-soft-foreground: oklch(0.86 0.09 195);
+
+  --secondary: oklch(0.28 0.02 240);
+  --secondary-foreground: oklch(0.96 0.005 85);
+
+  --muted: oklch(0.26 0.015 240);
+  --muted-foreground: oklch(0.7 0.02 240);
+
+  --accent: oklch(0.3 0.05 200);
+  --accent-foreground: oklch(0.96 0.02 195);
+
+  --info: oklch(0.72 0.12 235);
+  --info-foreground: oklch(0.17 0.02 240);
+  --info-soft: oklch(0.28 0.06 235);
+  --info-soft-foreground: oklch(0.86 0.09 235);
+
+  --destructive: oklch(0.68 0.18 22);
+  --destructive-foreground: oklch(0.17 0.02 240);
+
+  --border: oklch(0.3 0.015 240);
+  --input: oklch(0.3 0.015 240);
+  --ring: oklch(0.72 0.12 195);
+
+  --status-pending: oklch(0.74 0.15 78);
+  --status-pending-foreground: oklch(0.15 0.03 78);
+  --status-confirmed: oklch(0.72 0.15 155);
+  --status-confirmed-foreground: oklch(0.15 0.03 155);
+  --status-cancelled: oklch(0.62 0.02 240);
+  --status-cancelled-foreground: oklch(0.15 0.02 240);
+  --status-rejected: oklch(0.68 0.18 20);
+  --status-rejected-foreground: oklch(0.15 0.03 20);
+  --status-completed: oklch(0.7 0.1 195);
+  --status-completed-foreground: oklch(0.15 0.03 195);
+  --status-noshow: oklch(0.58 0.02 240);
+  --status-noshow-foreground: oklch(0.15 0.02 240);
+
+  --chart-1: oklch(0.72 0.12 195);
+  --chart-2: oklch(0.7 0.15 155);
+  --chart-3: oklch(0.74 0.15 78);
+  --chart-4: oklch(0.68 0.18 22);
+  --chart-5: oklch(0.72 0.12 235);
+
+  --sidebar: oklch(0.15 0.015 240);
+  --sidebar-foreground: oklch(0.96 0.005 85);
+  --sidebar-primary: oklch(0.72 0.12 195);
+  --sidebar-primary-foreground: oklch(0.17 0.02 240);
+  --sidebar-accent: oklch(0.28 0.02 240);
+  --sidebar-accent-foreground: oklch(0.96 0.005 85);
+  --sidebar-border: oklch(0.3 0.015 240);
+  --sidebar-ring: oklch(0.72 0.12 195);
+}
+
+/* ------------------------------------------------------------------ */
+/* @theme: map tokens to Tailwind utilities (bg-primary, text-info,   */
+/* border-border, bg-status-pending, etc.)                             */
+/* ------------------------------------------------------------------ */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-foreground: var(--primary-soft-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+  --color-info-soft-foreground: var(--info-soft-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-status-pending: var(--status-pending);
+  --color-status-pending-foreground: var(--status-pending-foreground);
+  --color-status-confirmed: var(--status-confirmed);
+  --color-status-confirmed-foreground: var(--status-confirmed-foreground);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-cancelled-foreground: var(--status-cancelled-foreground);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-rejected-foreground: var(--status-rejected-foreground);
+  --color-status-completed: var(--status-completed);
+  --color-status-completed-foreground: var(--status-completed-foreground);
+  --color-status-noshow: var(--status-noshow);
+  --color-status-noshow-foreground: var(--status-noshow-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ------------------------------------------------------------------ */
+/* Base layer                                                          */
+/* ------------------------------------------------------------------ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Slightly tighter tracking on large display headings — reads more
+     editorial and less generic-SaaS. */
+  h1,
+  h2 {
+    letter-spacing: -0.015em;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion utilities  Phase 8.4                                        */
+/*                                                                     */
+/* Small, purposeful only. No spinning, no bouncing, nothing that runs*/
+/* indefinitely except the heartbeat pulse — which is slow (2.4s) and */
+/* used sparingly on the hero's "backend online" indicator.           */
+/*                                                                     */
+/* All motion is gated by @media (prefers-reduced-motion: reduce) at  */
+/* the bottom of this block — users who opt out see the end state    */
+/* immediately with no animation.                                     */
+/* ------------------------------------------------------------------ */
+@layer utilities {
+  @keyframes cf-fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 8px, 0);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes cf-fade-in {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes cf-heartbeat {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+    50% {
+      transform: scale(1.08);
+      opacity: 1;
+    }
+  }
+
+  @keyframes cf-pulse-ring {
+    0% {
+      transform: scale(0.8);
+      opacity: 0.55;
+    }
+    100% {
+      transform: scale(2.2);
+      opacity: 0;
+    }
+  }
+
+  @keyframes cf-shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: cf-fade-in-up 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-fade-in {
+    animation: cf-fade-in 500ms ease-out both;
+  }
+  .animate-heartbeat {
+    animation: cf-heartbeat 2.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+  .animate-pulse-ring {
+    animation: cf-pulse-ring 2.4s ease-out infinite;
+  }
+  .animate-shimmer {
+    background-size: 200% 100%;
+    animation: cf-shimmer 2.4s linear infinite;
+  }
+
+  /* Staggered reveal helper — attach `.delay-100` … `.delay-500` to a
+     child that also carries `.animate-fade-in-up`. */
+  .delay-75 {
+    animation-delay: 75ms;
+  }
+  .delay-150 {
+    animation-delay: 150ms;
+  }
+  .delay-300 {
+    animation-delay: 300ms;
+  }
+  .delay-500 {
+    animation-delay: 500ms;
+  }
+
+  /* Restrained hover-lift for cards. Small translate + border shift,
+     no shadow bloom. Applied via `.hover-lift` on the outer element. */
+  .hover-lift {
+    transition:
+      transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 240ms ease,
+      box-shadow 240ms ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Faint diagonal grid backdrop — used sparingly behind the landing
+     hero. Never overwhelming; the mask fades it into the surface. */
+  .bg-clinical-grid {
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in oklch, var(--foreground) 6%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklch, var(--foreground) 6%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 32px 32px;
+    mask-image: radial-gradient(
+      ellipse at 30% 30%,
+      rgba(0, 0, 0, 0.35) 0%,
+      transparent 70%
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in,
+  .animate-heartbeat,
+  .animate-pulse-ring,
+  .animate-shimmer {
+    animation: none !important;
+  }
+  .hover-lift {
+    transition: none !important;
+  }
+  .hover-lift:hover {
+    transform: none !important;
+  }
+}
