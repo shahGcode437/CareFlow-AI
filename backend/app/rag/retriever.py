@@ -26,6 +26,7 @@ from typing import Sequence
 from app.rag.chunker import KnowledgeChunk, chunk_documents
 from app.rag.documents import KnowledgeDocument
 from app.rag.embedder import Embedder
+from app.rag.entity_filter import filter_and_rerank_results
 from app.rag.vector_store import NumpyVectorStore, VectorSearchResult
 
 
@@ -148,10 +149,20 @@ class KnowledgeRetriever:
             return []
 
         [query_vector] = self._embedder.embed([cleaned])
-        raw = self._store.search(query_vector, top_k=effective_top_k)
+        search_breadth = max(effective_top_k * 3, 12, effective_top_k)
+        raw = self._store.search(
+            query_vector, top_k=min(search_breadth, self._store.size)
+        )
         if effective_min <= 0.0:
-            return raw
-        return [hit for hit in raw if hit.score >= effective_min]
+            candidates = raw
+        else:
+            candidates = [hit for hit in raw if hit.score >= effective_min]
+
+        return filter_and_rerank_results(
+            candidates,
+            cleaned,
+            top_k=effective_top_k,
+        )
 
     # -- factory -------------------------------------------------------------
 
