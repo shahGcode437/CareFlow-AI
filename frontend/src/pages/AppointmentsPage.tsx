@@ -171,6 +171,7 @@ export default function AppointmentsPage() {
               title="Appointment not found."
               description={`We couldn't find an appointment with ID "${submittedId}". Double-check the ID from your confirmation.`}
               homeHref="/appointments"
+            homeLabel="Try another ID"
             />
           )}
 

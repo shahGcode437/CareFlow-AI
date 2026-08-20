@@ -76,6 +76,7 @@ export default function AppointmentDetailPage() {
             title="Appointment not found."
             description={`We couldn't find an appointment with ID "${appointmentId}".`}
             homeHref="/appointments"
+            homeLabel="Back to lookup"
           />
         )}
 

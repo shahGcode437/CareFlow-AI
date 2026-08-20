@@ -12,11 +12,19 @@ export function NotFoundState({
   title = "Page not found.",
   description = "That link doesn't lead anywhere in CareFlow AI.",
   homeHref = "/",
+  homeLabel = "Back to home",
   className,
 }: {
   title?: string;
   description?: string;
   homeHref?: string;
+  /**
+   * Text shown on the primary button. Override when `homeHref` isn't
+   * actually the home page — e.g. `/appointments` / `/staff` — so
+   * users see "Try another ID" / "Back to lookup" instead of the
+   * confusing default.
+   */
+  homeLabel?: string;
   className?: string;
 }) {
   return (
@@ -43,7 +51,7 @@ export function NotFoundState({
           "hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         )}
       >
-        Back to home
+        {homeLabel}
       </Link>
     </div>
   );
