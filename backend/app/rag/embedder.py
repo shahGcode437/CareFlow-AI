@@ -22,6 +22,7 @@ strings into normalized float vectors.
 from __future__ import annotations
 
 import hashlib
+import os
 from abc import ABC, abstractmethod
 from typing import Iterable, Sequence
 
@@ -196,6 +197,32 @@ class FastEmbedEmbedder(Embedder):
     def _ensure_model(self) -> None:
         if self._model is not None:
             return
+
+        # Root-cause fix for a real race condition (not a log-suppression
+        # hack): downloading the model's ~5 files triggers
+        # huggingface_hub.snapshot_download(), which fetches them in
+        # parallel via tqdm.contrib.concurrent.thread_map (an 8-worker
+        # ThreadPoolExecutor). Each worker's completed Future runs
+        # `pbar.update()` as a done-callback FROM THAT WORKER THREAD.
+        # When per-file download times vary a lot — near-guaranteed in a
+        # container with constrained/throttled network and CPU, where
+        # the multi-hundred-MB ONNX weight file finishes long after the
+        # small tokenizer/config files — a callback can still be firing
+        # while tqdm's shared class-level lock is being torn down by
+        # another thread, producing:
+        #   AttributeError: 'tqdm' object has no attribute '_lock'
+        # `HF_HUB_DISABLE_PROGRESS_BARS=1` is huggingface_hub's own
+        # documented switch for exactly this class of headless/
+        # server/CI environment: it makes every wrapped tqdm instance
+        # construct with `disable=True`, and tqdm's own `update()` /
+        # `refresh()` both return immediately when `self.disable` is
+        # true — BEFORE the code path that touches the shared lock is
+        # ever reached (see tqdm/std.py). So this doesn't hide the
+        # error, it removes the racy code path that produces it.
+        # `setdefault` respects an operator who deliberately re-enables
+        # progress bars.
+        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+
         # Local import so nothing outside fastembed's package is loaded
         # unless a real embedding is actually required.
         from fastembed import TextEmbedding  # type: ignore[import-untyped]

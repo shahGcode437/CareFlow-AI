@@ -13,6 +13,7 @@ happened inside AppointmentService by the time a ToolResult comes back.
 from dataclasses import dataclass
 from typing import Any
 
+from app.agents.doctor_resolver import doctor_name_for_id
 from app.agents.llm_provider import LLMProvider, NeedsInfoDecision, NotApplicableDecision, ToolCallDecision
 from app.tools.appointment_tools import AppointmentTools
 from app.tools.tool_result import ToolResult
@@ -112,7 +113,13 @@ class AppointmentAgent:
     @staticmethod
     def _success_message(tool_name: str, data: dict[str, Any] | None) -> str:
         if tool_name == "check_availability" and data:
-            return data.get("message", "Availability checked.")
+            base = data.get("message", "Availability checked.")
+            # Phase 9.6: name the doctor rather than leaving the
+            # response as a bare "The requested slot is..." sentence —
+            # patients think in doctor names, not internal ids. Never
+            # exposes the raw doctor_id in the message text.
+            doctor_name = doctor_name_for_id(data.get("doctor_id", ""))
+            return f"{doctor_name}: {base}" if doctor_name else base
         if tool_name == "find_alternative_slots":
             if data and data.get("alternatives"):
                 return "Here are some alternative times I found."

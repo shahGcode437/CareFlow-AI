@@ -1,0 +1,62 @@
+# CareFlow AI — local orchestration for the existing backend/frontend
+# images. Does not change either Dockerfile, any application code, or
+# any API contract — this file only wires together what already works
+# when run manually with `docker run`.
+#
+# API URL note (read before changing VITE_API_BASE_URL):
+#   The frontend is a static SPA (Vite build served by nginx) — there
+#   is no server-side proxy. Every API call is made by JavaScript
+#   running in the USER'S BROWSER, which is outside the Docker
+#   network entirely. Vite also bakes VITE_* variables into the JS
+#   bundle at BUILD time (static string replacement), so this value
+#   cannot be changed at container-run time.
+#
+#   That means the correct value is the URL the BROWSER can reach —
+#   the backend's host-published port (http://localhost:8000) — NOT
+#   a Docker-internal service name like "http://backend:8000". The
+#   browser has no DNS route into the compose network and could never
+#   resolve that hostname. This matches the frontend Dockerfile's own
+#   default (see frontend/Dockerfile) exactly, so no new behavior is
+#   introduced versus the already-verified manual `docker run` setup.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    image: careflow-backend
+    container_name: careflow-backend
+    ports:
+      - "8000:8000"
+    # /health is a static route with no RAG/embedder dependency, so it
+    # responds immediately regardless of whether the Knowledge
+    # Retriever has been lazily built yet. No curl/wget in the slim
+    # base image (and the Dockerfile is intentionally left
+    # unmodified), so the check uses Python's stdlib, already present.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Matches the frontend Dockerfile's own default — the
+        # browser-facing backend URL. See the note above for why this
+        # is not the compose service name "backend".
+        VITE_API_BASE_URL: http://localhost:8000
+    image: careflow-frontend
+    container_name: careflow-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy

@@ -3,8 +3,15 @@ import { cn } from "@/lib/utils";
 
 /**
  * Concrete starter prompts — every one is a real capability against
- * the current backend, and every id/date/time in the copy actually
- * exists in the seed workbook (DOC-001 · APT-001 · 2026-08-16).
+ * the current backend, and every date/time in the copy actually
+ * exists in the seed workbook (Dr. Ahmed = DOC-001, APT-001,
+ * 2026-08-16).
+ *
+ * Doctor references use the human-readable name rather than the
+ * internal "DOC-001" id — patients shouldn't need to know an
+ * identifier to ask a question. The backend resolves "Dr. Ahmed" (or
+ * bare "Ahmed") to the stable doctor_id itself (Phase 9.6); a literal
+ * "DOC-001" still works too, it's just not what we show as an example.
  *
  * The rule-based provider (the default) can extract these tokens
  * verbatim; the Groq provider handles them at least as well. So
@@ -20,7 +27,7 @@ interface SuggestedPromptsProps {
 const PROMPTS: { label: string; message: string }[] = [
   {
     label: "Check a specific slot",
-    message: "Is DOC-001 available on 2026-08-16 at 17:30?",
+    message: "Is Dr. Ahmed available on 2026-08-16 at 17:30?",
   },
   {
     label: "Look up an appointment",
@@ -29,7 +36,7 @@ const PROMPTS: { label: string; message: string }[] = [
   {
     label: "Find alternative slots",
     message:
-      "Look for alternative slots for DOC-001 on 2026-08-16 at 17:00",
+      "Find alternative slots with Dr. Ahmed on 2026-08-16 at 17:00",
   },
   {
     label: "Cancel a request",

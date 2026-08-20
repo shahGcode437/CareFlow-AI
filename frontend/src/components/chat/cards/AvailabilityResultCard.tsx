@@ -1,6 +1,7 @@
 import { CalendarClock, CheckCircle2, XCircle } from "lucide-react";
 import type { AvailabilityResponse } from "@/types/api";
 import { formatDate, formatTime } from "@/lib/format";
+import { findDemoDoctor } from "@/config/clinic";
 import { cn } from "@/lib/utils";
 
 /**
@@ -17,6 +18,9 @@ export function AvailabilityResultCard({
   const stateClass = data.available
     ? "text-status-confirmed"
     : "text-status-rejected";
+  // Patients think in doctor names, not internal ids — resolve when
+  // we can, but never hide the id entirely (still useful for support).
+  const doctor = findDemoDoctor(data.doctor_id);
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -32,7 +36,11 @@ export function AvailabilityResultCard({
       </div>
 
       <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-        <Field label="Doctor" value={data.doctor_id} mono />
+        <Field
+          label="Doctor"
+          value={doctor ? `${doctor.name} · ${data.doctor_id}` : data.doctor_id}
+          mono={!doctor}
+        />
         <Field label="Date" value={formatDate(data.appointment_date)} />
         <Field label="Time" value={formatTime(data.appointment_time)} />
       </dl>

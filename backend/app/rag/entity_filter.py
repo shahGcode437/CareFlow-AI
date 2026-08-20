@@ -296,9 +296,50 @@ def filter_and_rerank_results(
     return results[:top_k]
 
 
+# _DR_TITLE_RE captures up to two words after "Dr."/"Doctor" so it can
+# grab two-word surnames ("Dr. Bilal Iqbal"). That means a sentence
+# like "Dr. Watson available today?" also captures "Watson available"
+# as a two-word candidate. These words never appear as an actual
+# second name-word in this clinic's registry, so trimming them off a
+# captured candidate is safe display-only cleanup, not a matching
+# change — `detect_doctor_entities`'s own matching logic is untouched.
+_NON_NAME_SENTENCE_CONTINUATIONS = frozenset(
+    {"available", "free", "today", "tomorrow", "now", "please", "here", "there", "around", "open"}
+)
+
+
+def extract_dr_title_name(query: str) -> str | None:
+    """Return the raw name text following a "Dr."/"Doctor" title in
+    ``query`` (e.g. "Xyz" from "Dr. Xyz"), or ``None`` if no such
+    pattern is present, or if the word following the title is a known
+    non-name concept (see ``_EXCLUDED_TITLE_WORDS``, e.g. "Dr.
+    appointment").
+
+    Used by the appointment-side doctor-name resolver
+    (``app.agents.doctor_resolver``, Phase 9.6) to phrase an honest
+    "I couldn't find a doctor named X" message when a patient names an
+    unknown doctor. Purely additive — does not change
+    ``detect_doctor_entities``'s own behavior or return shape.
+    """
+    m = _DR_TITLE_RE.search(query)
+    if not m:
+        return None
+    name_candidate = m.group(1).strip()
+    if not name_candidate:
+        return None
+    words = name_candidate.split()
+    first_word = words[0].lower()
+    if first_word in _EXCLUDED_TITLE_WORDS:
+        return None
+    if len(words) > 1 and words[1].lower() in _NON_NAME_SENTENCE_CONTINUATIONS:
+        return words[0]
+    return name_candidate
+
+
 __all__ = [
     "CLINIC_DOCTORS",
     "DoctorEntity",
     "detect_doctor_entities",
+    "extract_dr_title_name",
     "filter_and_rerank_results",
 ]

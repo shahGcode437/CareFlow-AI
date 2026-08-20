@@ -3,10 +3,13 @@ import { ArrowRight, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Static mid-page preview of the CareFlow assistant. Uses the
- * technical, verifiable example (real doctor id, ISO date, 24-hour
- * time) — the same shape any viewer could later type into the live
- * assistant. NOT wired to `/chat`; the label makes that explicit.
+ * Static mid-page preview of the CareFlow assistant. Uses a real,
+ * verifiable example (an actual seed doctor, ISO date, 24-hour time)
+ * — the same shape any viewer could later type into the live
+ * assistant. Refers to the doctor by name ("Dr. Ahmed"), matching
+ * what a real patient would type; the backend resolves that to the
+ * internal doctor_id itself. NOT wired to `/chat`; the label makes
+ * that explicit.
  */
 export function AssistantPreview() {
   return (
@@ -77,8 +80,8 @@ export function AssistantPreview() {
                   <div className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
                     User
                   </div>
-                  <div className="mt-1 rounded-2xl rounded-tl-md border border-border bg-background/70 px-4 py-3 font-mono text-sm text-foreground">
-                    Is DOC-001 available on 2026-08-16 at 17:00?
+                  <div className="mt-1 rounded-2xl rounded-tl-md border border-border bg-background/70 px-4 py-3 text-sm text-foreground">
+                    Is Dr. Ahmed available on 2026-08-16 at 17:00?
                   </div>
                 </div>
               </div>

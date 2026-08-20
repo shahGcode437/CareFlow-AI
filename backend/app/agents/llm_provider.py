@@ -39,6 +39,9 @@ from typing import Any, Callable, Literal, Sequence, Union
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
+from app.agents.doctor_resolver import doctor_name_for_id, resolve_doctor_by_name
+from app.rag.entity_filter import CLINIC_DOCTORS, DoctorEntity
+
 SYSTEM_PROMPT = """You are CareFlow-AI's appointment assistant.
 
 1. You are CareFlow-AI's appointment assistant.
@@ -241,6 +244,27 @@ _INTENT_RULES: list[tuple[list[str], str, list[str]]] = [
     ),
 ]
 
+# Optional fields each tool accepts beyond its required set (Tool
+# Contract §5-12 input schemas). Module-level so both the doctor-
+# resolution step and final argument assembly in `decide()` share one
+# definition.
+_OPTIONAL_FIELDS_BY_TOOL: dict[str, list[str]] = {
+    "check_availability": ["service"],
+    "find_alternative_slots": ["service", "preferences"],
+    "create_appointment": ["notes"],
+    "update_appointment": [
+        "doctor_id",
+        "doctor_name",
+        "service",
+        "appointment_date",
+        "appointment_time",
+        "notes",
+    ],
+    "cancel_appointment": ["reason"],
+    "approve_appointment": ["notes", "is_staff", "staff_id"],
+    "reject_appointment": ["is_staff", "staff_id"],
+}
+
 _APPOINTMENT_ID_RE = re.compile(r"\bAPT-[A-Za-z0-9]+\b")
 _DOCTOR_ID_RE = re.compile(r"\bDOC-[A-Za-z0-9]+\b")
 _DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
@@ -264,7 +288,20 @@ def _extract_from_message(message: str) -> dict[str, str]:
 
 class RuleBasedIntentProvider(LLMProvider):
     """Deterministic, no-external-call placeholder. See module
-    docstring for scope and limitations."""
+    docstring for scope and limitations.
+
+    Phase 9.6: also resolves natural-language doctor references
+    ("Dr. Ahmed", "Ahmed", "doctor Ahmed") into the stable
+    ``doctor_id``/``doctor_name`` the appointment tools require, using
+    the shared clinic doctor registry
+    (``app.rag.entity_filter.CLINIC_DOCTORS``). An explicit "DOC-XXX"
+    id in the message (matched by ``_extract_from_message`` above)
+    always takes priority and is never second-guessed by name
+    matching — existing ID-based queries are unaffected.
+    """
+
+    def __init__(self, doctor_registry: Sequence[DoctorEntity] = CLINIC_DOCTORS):
+        self._doctor_registry = doctor_registry
 
     def decide(self, message: str, context: dict[str, Any] | None = None) -> AgentDecision:
         lowered = message.lower()
@@ -285,6 +322,57 @@ class RuleBasedIntentProvider(LLMProvider):
             )
 
         known: dict[str, Any] = {**_extract_from_message(message), **(context or {})}
+
+        # --- Doctor identification (Phase 9.6) ------------------------------
+        # Patients should never need to know internal doctor_id values.
+        # Resolve a natural-language reference before evaluating missing
+        # fields, so "Dr. Ahmed"/"Ahmed" work exactly like "DOC-001"
+        # already did. Only attempted when this tool actually accepts a
+        # doctor_id and none was already captured (explicit id always
+        # wins).
+        optional_fields = _OPTIONAL_FIELDS_BY_TOOL.get(matched_tool, [])
+        doctor_required = "doctor_id" in required_fields
+        doctor_accepted = doctor_required or "doctor_id" in optional_fields
+
+        if doctor_accepted and not known.get("doctor_id"):
+            resolution = resolve_doctor_by_name(message, self._doctor_registry)
+            if resolution.is_resolved:
+                known["doctor_id"] = resolution.doctor_id
+                known.setdefault("doctor_name", resolution.doctor_name)
+            elif doctor_required and resolution.is_ambiguous:
+                names = ", ".join(resolution.ambiguous_candidates)
+                return NeedsInfoDecision(
+                    missing_fields=["doctor_id"],
+                    message=(
+                        f"I found more than one doctor that could match. "
+                        f"Did you mean {names}? Please specify which doctor "
+                        f"you'd like."
+                    ),
+                )
+            elif doctor_required and resolution.is_unknown:
+                return NeedsInfoDecision(
+                    missing_fields=["doctor_id"],
+                    message=(
+                        f"I couldn't find a doctor named "
+                        f"{resolution.unknown_name}. Please check the "
+                        f"doctor's name."
+                    ),
+                )
+            # Else: no doctor reference detected at all (or an
+            # unresolved/ambiguous mention on an OPTIONAL doctor field,
+            # e.g. during reschedule) — leave doctor_id unset. Required
+            # cases fall through to the generic missing-fields message
+            # below; optional cases simply proceed without a doctor.
+
+        # Backfill doctor_name from the registry when we already have a
+        # doctor_id (explicit "DOC-001", or just resolved above) but not
+        # doctor_name — needed by create_appointment/update_appointment,
+        # which both accept doctor_name.
+        if known.get("doctor_id") and not known.get("doctor_name"):
+            resolved_name = doctor_name_for_id(known["doctor_id"], self._doctor_registry)
+            if resolved_name:
+                known["doctor_name"] = resolved_name
+
         missing = [f for f in required_fields if not known.get(f)]
 
         if missing:
@@ -295,24 +383,8 @@ class RuleBasedIntentProvider(LLMProvider):
 
         # Forward any optional fields the tool accepts, when present in
         # context (never invented).
-        optional_by_tool = {
-            "check_availability": ["service"],
-            "find_alternative_slots": ["service", "preferences"],
-            "create_appointment": ["notes"],
-            "update_appointment": [
-                "doctor_id",
-                "doctor_name",
-                "service",
-                "appointment_date",
-                "appointment_time",
-                "notes",
-            ],
-            "cancel_appointment": ["reason"],
-            "approve_appointment": ["notes", "is_staff", "staff_id"],
-            "reject_appointment": ["is_staff", "staff_id"],
-        }
         arguments = {f: known[f] for f in required_fields}
-        for optional_field in optional_by_tool.get(matched_tool, []):
+        for optional_field in optional_fields:
             if optional_field in known:
                 arguments[optional_field] = known[optional_field]
 
