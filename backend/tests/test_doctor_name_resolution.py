@@ -294,6 +294,94 @@ def test_ambiguous_doctor_name_on_optional_field_does_not_block_reschedule():
 
 
 # ---------------------------------------------------------------------------
+# Regression: bare-token false positives against unrelated words in the
+# same message (e.g. the patient's own name colliding with a doctor's
+# single-word surname token). "Dr. Hassan Ali" (DOC-009) has "ali" as
+# one of its registered tokens — bare "ali" can legitimately appear
+# anywhere in a sentence for a reason that has nothing to do with that
+# doctor.
+# ---------------------------------------------------------------------------
+
+
+def test_full_booking_message_with_colliding_patient_name_resolves_uniquely():
+    """This is the exact bug report: 'Ali' in the patient's OWN name
+    ('My name is Ali Khan') must not be treated as a reference to
+    'Dr. Hassan Ali' (DOC-009) just because 'ali' is one of that
+    doctor's registered tokens. Only Dr. Ahmed should resolve."""
+    message = (
+        "I want to book an appointment with Dr. Ahmed on 2026-08-16 at "
+        "17:30. My name is Ali Khan, my phone number is 03001234567, "
+        "and I need a General Consultation."
+    )
+    resolution = resolve_doctor_by_name(message)
+    assert resolution.is_resolved
+    assert not resolution.is_ambiguous
+    assert resolution.doctor_id == "DOC-001"
+    assert resolution.doctor_name == "Dr. Ahmed"
+
+
+def test_full_booking_message_with_colliding_patient_name_via_decide():
+    """End-to-end: the same message through RuleBasedIntentProvider
+    must resolve the doctor silently (never asking the patient to
+    disambiguate a doctor they already named unambiguously) AND — as
+    of Phase 9.7 — extract patient_name/patient_phone/service from
+    the same natural-language message, proceeding straight to
+    create_appointment rather than asking for anything further."""
+    provider = RuleBasedIntentProvider()
+    message = (
+        "I want to book an appointment with Dr. Ahmed on 2026-08-16 at "
+        "17:30. My name is Ali Khan, my phone number is 03001234567, "
+        "and I need a General Consultation."
+    )
+    decision = provider.decide(message)
+    assert isinstance(decision, ToolCallDecision)
+    assert decision.tool_name == "create_appointment"
+    assert decision.arguments == {
+        "patient_name": "Ali Khan",
+        "patient_phone": "03001234567",
+        "doctor_id": "DOC-001",
+        "doctor_name": "Dr. Ahmed",
+        "service": "General Consultation",
+        "appointment_date": "2026-08-16",
+        "appointment_time": "17:30",
+    }
+
+
+def test_exact_full_name_resolves_even_when_a_different_doctors_token_appears_elsewhere():
+    """Direct unit-level regression pin for the false-positive itself:
+    the raw resolver must not include DOC-009 among the candidates
+    just because 'Ali' appears in unrelated text."""
+    resolution = resolve_doctor_by_name(
+        "Book Dr. Ahmed for my friend Ali on 2026-08-16 at 17:30"
+    )
+    assert resolution.doctor_id == "DOC-001"
+    assert not resolution.is_ambiguous
+
+
+def test_question_style_booking_with_doctor_name_only_proceeds_to_normal_missing_fields():
+    """TEST 3 from the bug report: a bare booking question with only
+    the doctor named must resolve immediately and fall through to the
+    ordinary missing-details flow, not an ambiguity prompt."""
+    provider = RuleBasedIntentProvider()
+    decision = provider.decide("Can I book an appointment with Dr. Ahmed?")
+    assert isinstance(decision, NeedsInfoDecision)
+    assert "doctor_id" not in decision.missing_fields
+    assert "more than one doctor" not in decision.message.lower()
+    assert "which doctor" not in decision.message.lower()
+
+
+def test_exact_tier_still_defers_to_broader_matcher_when_no_exact_match_exists():
+    """Sanity: a genuinely short first-name-only reference for a
+    two-word-named doctor (no exact full-name match possible) must
+    still resolve via the existing broader/token matcher — tier A/B
+    only short-circuits when it finds an exact hit, it never removes
+    the fallback for legitimate shorter references."""
+    resolution = resolve_doctor_by_name("Tell me about Dr. Bilal")
+    assert resolution.doctor_id == "DOC-003"
+    assert resolution.doctor_name == "Dr. Bilal Iqbal"
+
+
+# ---------------------------------------------------------------------------
 # 9: patient-facing response should not unnecessarily expose DOC-001
 # ---------------------------------------------------------------------------
 

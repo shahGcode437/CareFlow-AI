@@ -220,7 +220,16 @@ _INTENT_RULES: list[tuple[list[str], str, list[str]]] = [
         ["appointment_id"],
     ),
     (
-        ["another time", "alternative", "different time", "other slot", "other time"],
+        [
+            "another time",
+            "another available",
+            "alternative",
+            "different time",
+            "different available",
+            "other slot",
+            "other time",
+            "other available",
+        ],
         "find_alternative_slots",
         ["doctor_id", "appointment_date", "appointment_time"],
     ),
@@ -270,10 +279,77 @@ _DOCTOR_ID_RE = re.compile(r"\bDOC-[A-Za-z0-9]+\b")
 _DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 _TIME_RE = re.compile(r"\b([01]?\d|2[0-3]):[0-5]\d\b")
 
+# --- Phase 9.7: natural-language patient_name/patient_phone/service
+# extraction ---------------------------------------------------------
+#
+# Same philosophy as the rest of this function: only extract when a
+# clear, anchored trigger phrase is present. No general-purpose NLP,
+# no guessing. Each pattern is deliberately bounded so it can't bleed
+# into the rest of the sentence (see module docstring point 2).
+#
+# Patient name uses a proper-noun heuristic (1-4 consecutive
+# Title-Case words) rather than "everything up to a delimiter" — this
+# is what stops the match at the next lowercase word ("my", "and",
+# ...) without needing to enumerate every possible stop word.
+_NAME_WORD = r"[A-Z][a-zA-Z'\-]*"
+_NAME_PHRASE = rf"({_NAME_WORD}(?:\s+{_NAME_WORD}){{0,3}})"
+
+_PATIENT_NAME_RE = re.compile(
+    rf"\b(?:[Mm]y name is|[Pp]atient name is|[Ii]['’]m|[Ii] am)\s+{_NAME_PHRASE}"
+)
+# "for <Name>" is a much weaker signal (it also shows up as "for
+# General Consultation") so it is only tried as a fallback, and only
+# accepted if it doesn't collide with a doctor reference — see
+# _looks_like_doctor_reference below.
+_PATIENT_NAME_FOR_RE = re.compile(rf"\bfor\s+{_NAME_PHRASE}\b")
+
+_PHONE_RE = re.compile(
+    r"\b(?:my phone number|my number|phone number|phone)\s*(?:is|:)\s*"
+    r"([+\d][\d\-\s]{5,}\d)",
+    re.IGNORECASE,
+)
+
+_SERVICE_RE = re.compile(
+    r"\b(?:i need (?:a|an)|i['’]d like (?:a|an)|service is)\s+"
+    r"([A-Za-z][A-Za-z\s\-]*?)(?=[.,]|\band\b|$)",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_doctor_reference(
+    phrase: str, registry: Sequence[DoctorEntity] = CLINIC_DOCTORS
+) -> bool:
+    """True iff ``phrase`` names a doctor in the clinic registry.
+
+    Guards the weak "for <Name>" patient-name fallback against
+    misreading "for Dr. Ahmed"/"for Ahmed" as the patient's own name.
+    Reuses CLINIC_DOCTORS directly rather than a second doctor list —
+    the same single source of truth ``doctor_resolver`` already uses.
+    """
+    lowered = phrase.strip().lower()
+    # A leading title — whole phrase "Dr"/"Doctor" (the period gets
+    # stripped by the word-character class, e.g. "for Dr. Ahmed"
+    # captures just "Dr"), or "Doctor Ahmed" as two words — is never a
+    # real patient name on its own. Catch it before the registry check.
+    first_word = lowered.split(" ", 1)[0]
+    if lowered in ("dr", "doctor") or first_word in ("dr", "doctor"):
+        return True
+    for doc in registry:
+        name_lower = doc.name.lower()
+        if lowered == name_lower or lowered == name_lower.removeprefix("dr. "):
+            return True
+        if doc.tokens and lowered == doc.tokens[0]:
+            return True
+    return False
+
 
 def _extract_from_message(message: str) -> dict[str, str]:
     """Only extracts unambiguous, machine-readable tokens — see module
-    docstring for what this deliberately does NOT attempt."""
+    docstring for what this deliberately does NOT attempt. Phase 9.7
+    additionally extracts patient_name/patient_phone/service, but only
+    from clearly-anchored natural-language phrasing (see the patterns
+    above) — free-text with no recognizable anchor still falls through
+    to the existing missing-fields flow unchanged."""
     extracted: dict[str, str] = {}
     if match := _APPOINTMENT_ID_RE.search(message):
         extracted["appointment_id"] = match.group(0)
@@ -283,6 +359,25 @@ def _extract_from_message(message: str) -> dict[str, str]:
         extracted["appointment_date"] = match.group(0)
     if match := _TIME_RE.search(message):
         extracted["appointment_time"] = match.group(0)
+
+    if match := _PHONE_RE.search(message):
+        phone = match.group(1).strip()
+        if phone:
+            extracted["patient_phone"] = phone
+
+    if match := _SERVICE_RE.search(message):
+        service = match.group(1).strip()
+        if service:
+            extracted["service"] = service
+
+    name_match = _PATIENT_NAME_RE.search(message)
+    if name_match is None:
+        for_match = _PATIENT_NAME_FOR_RE.search(message)
+        if for_match and not _looks_like_doctor_reference(for_match.group(1)):
+            name_match = for_match
+    if name_match:
+        extracted["patient_name"] = name_match.group(1).strip()
+
     return extracted
 
 

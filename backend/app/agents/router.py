@@ -98,6 +98,11 @@ _APPOINTMENT_VERB_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bmove (?:my|the) appointment\b", re.IGNORECASE),
     re.compile(r"\bslot\b", re.IGNORECASE),
     re.compile(r"\bcheck availability\b", re.IGNORECASE),
+    # "alternative slots/times" (find_alternative_slots) is an
+    # appointment operation, but had no signal here at all — the
+    # message was falling through to UNSUPPORTED before ever reaching
+    # RuleBasedIntentProvider, which already handles it correctly.
+    re.compile(r"\balternative\b", re.IGNORECASE),
 )
 
 # Live-availability check signals (routed to appointment side because
